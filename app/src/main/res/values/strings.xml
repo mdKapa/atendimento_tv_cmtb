@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">AtendimentoTV</string>
+    <string name="indicador_pagina">Página %1$d de %2$d</string>
+</resources>

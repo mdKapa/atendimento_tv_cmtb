@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Equivalente ao MainScreen do Flutter.
+    LinearLayout vertical = Column
+    LinearLayout horizontal = Row
+    weight = flex
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg_principal"
+    android:keepScreenOn="true">
+
+    <!-- ======================================================= -->
+    <!-- BARRA DE TOPO (10%) — equivalente ao TopInfoBar         -->
+    <!-- ======================================================= -->
+    <LinearLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="32dp"
+        android:paddingEnd="32dp"
+        android:background="@color/bg_principal">
+
+        <!-- Logótipo à esquerda -->
+        <ImageView
+            android:id="@+id/imgLogo"
+            android:layout_width="wrap_content"
+            android:layout_height="60dp"
+            android:adjustViewBounds="true"
+            android:scaleType="fitStart"
+            android:src="@mipmap/ic_launcher"
+            android:contentDescription="Logótipo" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
+
+        <!-- Relógio e data à direita -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/tvHora"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="@color/texto_primario"
+                android:textSize="36sp"
+                android:textStyle="bold"
+                android:lineSpacingMultiplier="1.0" />
+
+            <TextView
+                android:id="@+id/tvData"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Segunda-feira, 1 de Janeiro de 2026"
+                android:textColor="@color/texto_secundario"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Linha separadora -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/divider" />
+
+    <!-- ======================================================= -->
+    <!-- CORPO PRINCIPAL (90%) — Row com coluna esq + coluna dir -->
+    <!-- ======================================================= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="9"
+        android:orientation="horizontal">
+
+        <!-- ================================================ -->
+        <!-- COLUNA ESQUERDA (50%) — Vídeo + Agenda + Categorias -->
+        <!-- ================================================ -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="5"
+            android:orientation="vertical"
+            android:padding="5dp">
+
+            <!-- Player de Vídeo (flex 4) — usa SurfaceView para Hardware Overlay -->
+            <!--
+                CRÍTICO: PlayerView com surface_type="surface_view"
+                O SurfaceView perfura a UI e o Rockchip desenha o vídeo
+                diretamente no ecrã via Hardware Overlay — zero custo GPU
+            -->
+            <androidx.media3.ui.PlayerView
+                android:id="@+id/playerView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="5"
+                app:surface_type="surface_view"
+                app:use_controller="false"
+                app:resize_mode="fill"
+                android:background="@android:color/black"
+                xmlns:app="http://schemas.android.com/apk/res-auto"/>
+
+            <!-- Espaço entre elementos -->
+            <View android:layout_width="match_parent" android:layout_height="0dp" />
+
+            <!-- Agenda (altura fixa 80dp) -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:background="@color/bg_card"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:gravity="center_vertical">
+
+                <!-- Canto arredondado via background drawable (criamos a seguir) -->
+                <TextView
+                    android:id="@+id/tvAgenda"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Agenda  |  (Em breve: Texto Deslizante)"
+                    android:textColor="@color/texto_secundario"
+                    android:textSize="16sp" />
+            </LinearLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="16dp" />
+
+            <!-- Menu de Categorias (flex 3) -->
+            <!--
+                RecyclerView = ListView vertical do Flutter
+                Cada item é um cartão de categoria
+            -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvCategorias"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="3"
+                android:overScrollMode="never"
+                android:clipToPadding="false"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp" />
+        </LinearLayout>
+
+        <!-- Linha separadora vertical -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="@color/divider" />
+
+        <!-- ================================================ -->
+        <!-- COLUNA DIREITA (50%) — Destaque + Grelha de docs -->
+        <!-- ================================================ -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="5"
+            android:orientation="vertical"
+            android:padding="24dp">
+
+            <!-- Área de Destaque do Documento (flex 7) -->
+            <FrameLayout
+                android:id="@+id/frameDestaque"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="7"
+                android:background="@color/bg_destaque">
+
+                <!-- Imagem do documento atual -->
+                <ImageView
+                    android:id="@+id/imgDestaque"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Documento em destaque" />
+
+                <!-- Mensagem quando nenhum doc está selecionado -->
+                <TextView
+                    android:id="@+id/tvSemDocumento"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Selecione um documento para visualizar"
+                    android:textColor="@color/texto_inativo"
+                    android:textSize="18sp"
+                    android:visibility="visible" />
+
+                <!-- Indicador de página "X de Y" -->
+                <TextView
+                    android:id="@+id/tvPaginaIndicador"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="10dp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:paddingTop="8dp"
+                    android:paddingBottom="8dp"
+                    android:background="@color/bg_card"
+                    android:textColor="@color/texto_primario"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <!-- Seta esquerda -->
+                <ImageButton
+                    android:id="@+id/btnPaginaAnterior"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|center_vertical"
+                    android:src="@android:drawable/ic_media_previous"
+                    android:background="@color/bg_card"
+                    android:padding="12dp"
+                    android:contentDescription="Página anterior"
+                    android:visibility="gone" />
+
+                <!-- Seta direita -->
+                <ImageButton
+                    android:id="@+id/btnPaginaSeguinte"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:src="@android:drawable/ic_media_next"
+                    android:background="@color/bg_card"
+                    android:padding="12dp"
+                    android:contentDescription="Página seguinte"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <View android:layout_width="match_parent" android:layout_height="16dp" />
+
+            <!-- Grelha Horizontal de Documentos (flex 3) -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvDocumentos"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="3"
+                android:overScrollMode="never"
+                android:clipToPadding="false"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

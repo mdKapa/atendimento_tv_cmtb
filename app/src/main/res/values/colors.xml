@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="bg_principal">#FF121212</color>
+    <color name="bg_card">#FF1A1A1A</color>
+    <color name="bg_destaque">#FF1E1E1E</color>
+    <color name="divider">#FF333333</color>
+    <color name="texto_primario">#FFFFFFFF</color>
+    <color name="texto_secundario">#FFB3B3B3</color>
+    <color name="texto_inativo">#FF888888</color>
+    <color name="borda_card">#FF333333</color>
+
+    <!-- Gradientes -->
+    <color name="gradiente_inicio">#FF1D4D79</color>
+    <color name="gradiente_fim">#FF2E6F40</color>
+
+</resources>

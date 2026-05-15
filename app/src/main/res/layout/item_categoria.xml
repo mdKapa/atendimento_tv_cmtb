@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Equivalente ao item do ListView.separated das categorias -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemCategoriaRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="16dp"
+    android:background="@color/bg_card">
+
+    <!-- Ícone da categoria -->
+    <ImageView
+        android:id="@+id/imgCategoria"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:src="@android:drawable/ic_menu_agenda"
+        android:contentDescription="Ícone" />
+
+    <View android:layout_width="16dp" android:layout_height="1dp" />
+
+    <!-- Nome da categoria -->
+    <TextView
+        android:id="@+id/tvNomeCategoria"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textColor="@color/texto_secundario"
+        android:textSize="14sp"
+        android:maxLines="1"
+        android:ellipsize="end" />
+
+</LinearLayout>
