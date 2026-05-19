@@ -12,9 +12,9 @@ import pt.cmtb.atendimentotv.databinding.ItemDocumentoBinding
 
 // ============================================================
 // ADAPTADOR DE CATEGORIAS
-// Grelha 3 colunas × 2 linhas (máximo 6 categorias).
+// Grelha 2 colunas × 3 linhas (máximo 6 categorias).
 // Categorias sem documentos são ocultadas pelo ViewModel antes
-// de chegarem aqui — a grelha mantém sempre 3 colunas.
+// de chegarem aqui — a grelha mantém sempre 2 colunas.
 // ============================================================
 class CategoriasAdapter(
     private val onCategoriaClick: (CategoriaModel) -> Unit
@@ -88,9 +88,9 @@ class CategoriasAdapter(
     }
 
     companion object {
-        // 3 colunas fixas — sempre 3×2 independentemente do nº de categorias
+        // 2 colunas fixas — sempre 2×3 independentemente do nº de categorias
         fun criarLayoutManager(context: android.content.Context): GridLayoutManager {
-            val lm = GridLayoutManager(context, 3)
+            val lm = GridLayoutManager(context, 2)
             // Espaço uniforme de 4dp entre todas as células
             return lm
         }
@@ -134,15 +134,31 @@ class DocumentosAdapter(
             tvDataDocumento.text = doc.dataCriacao.take(10)
 
             if (isSelected) {
+                // Fundo Ativo
                 itemDocumentoRoot.setBackgroundResource(R.drawable.bg_doc_ativo)
+
+                // Título em destaque (Cor da categoria ativa e Bold)
                 tvTituloDocumento.setTextColor(ctx.getColor(R.color.cat_ativa_texto))
                 tvTituloDocumento.setTypeface(null, Typeface.BOLD)
+
+                // Data
                 tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_secundario))
+
+                // Pinta o ícone da mesma cor clara do título ativo (caso decidas mantê-lo)
+                imgDocIcon.setColorFilter(ctx.getColor(R.color.cat_ativa_texto))
             } else {
+                // Fundo Normal/Inativo
                 itemDocumentoRoot.setBackgroundResource(R.drawable.bg_card_normal)
+
+                // Título normal (Cor inativa e sem Bold)
                 tvTituloDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
                 tvTituloDocumento.setTypeface(null, Typeface.NORMAL)
+
+                // Data
                 tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
+
+                // Ícone escuro/inativo
+                imgDocIcon.setColorFilter(ctx.getColor(R.color.texto_inativo))
             }
 
             root.setOnClickListener { onDocumentoClick(doc) }
@@ -157,6 +173,6 @@ class DocumentosAdapter(
     companion object {
         // 2 linhas fixas + scroll horizontal
         fun criarLayoutManager(context: android.content.Context): GridLayoutManager =
-            GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
+            GridLayoutManager(context, 1, GridLayoutManager.HORIZONTAL, false)
     }
 }

@@ -120,10 +120,29 @@ class MainViewModel : ViewModel() {
             _isLoading.value = true
             _erro.value = null
             try {
-                val data = ApiClient.service.fetchBoardData()
-                _boardData.value = data
-                if (_categoriaId.value == null && data.categorias.isNotEmpty()) {
-                    selecionarCategoria(data.categorias.first().id)
+                // 1. Recebemos os dados brutos e normalizados da API
+                val rawData = ApiClient.service.fetchBoardData()
+
+                // 2. Extraímos apenas os IDs das categorias que estão associadas a pelo menos 1 documento.
+                // Usamos toSet() para eliminar IDs duplicados e garantir procuras ultrarrápidas O(1)
+                val idsComDocumentos = rawData.documentos.map { it.categoriaId }.toSet()
+
+                // 3. Filtramos a lista bruta de categorias:
+                // - A categoria tem de existir no Set idsComDocumentos
+                // - Bloqueamos no máximo a 6 elementos (.take(6)) para garantir as 3x2 linhas na grelha da TV
+                val categoriasFiltradas = rawData.categorias
+                    .filter { categoria -> categoria.id in idsComDocumentos }
+                    .take(6)
+
+                // 4. Criamos uma cópia do BoardData injetando apenas as categorias válidas
+                val dataFiltrada = rawData.copy(categorias = categoriasFiltradas)
+
+                // 5. Atualizamos a UI com os dados limpos
+                _boardData.value = dataFiltrada
+
+                // 6. Selecionamos a 1ª categoria automaticamente (agora garantimos que ela tem documentos!)
+                if (_categoriaId.value == null && categoriasFiltradas.isNotEmpty()) {
+                    selecionarCategoria(categoriasFiltradas.first().id)
                 }
             } catch (e: Exception) {
                 _erro.value = "Erro ao carregar dados: ${e.message}"

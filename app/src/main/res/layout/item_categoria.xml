@@ -1,46 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    Grelha 3×2: o GridLayoutManager com spanCount=3 VERTICAL trata das 3 colunas.
-    match_parent na largura + altura fixa garante células uniformes.
-    background usa drawable com cantos redondos — bg_card_normal por defeito,
-    substituído por bg_card_ativo no Adapters.kt quando selecionado.
--->
+
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/itemCategoriaRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="10dp"
+    android:layout_height="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:layout_margin="4dp"
     android:background="@drawable/bg_card_normal">
 
-    <!-- Ícone com fundo próprio arredondado -->
-    <FrameLayout
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:background="@color/cat_icone_bg">
+    <ImageView
+        android:id="@+id/imgCategoria"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@android:drawable/ic_menu_agenda"
+        android:contentDescription="Ícone" />
 
-        <ImageView
-            android:id="@+id/imgCategoria"
-            android:layout_width="18dp"
-            android:layout_height="18dp"
-            android:layout_gravity="center"
-            android:src="@android:drawable/ic_menu_agenda"
-            android:contentDescription="Ícone" />
-    </FrameLayout>
-
-    <View android:layout_width="1dp" android:layout_height="6dp" />
+    <View android:layout_width="16dp" android:layout_height="1dp" />
 
     <TextView
         android:id="@+id/tvNomeCategoria"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
+        android:layout_weight="1"
         android:textColor="@color/texto_inativo"
-        android:textSize="11sp"
-        android:gravity="center"
+        android:textSize="14sp"
+        android:textStyle="bold"
         android:maxLines="2"
-        android:ellipsize="end"
-        android:lineSpacingMultiplier="1.15" />
+        android:ellipsize="end" />
 
 </LinearLayout>
