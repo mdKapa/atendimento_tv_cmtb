@@ -1,18 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Base -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="bg_principal">#FF121212</color>
-    <color name="bg_card">#FF1A1A1A</color>
-    <color name="bg_destaque">#FF1E1E1E</color>
-    <color name="divider">#FF333333</color>
+
+    <!-- Fundo principal — preto puro, elimina o castanho -->
+    <color name="bg_principal">#FF0E0E0E</color>
+
+    <!-- Superfícies de cards e elementos secundários -->
+    <color name="bg_card">#FF161616</color>
+
+    <!-- Área de destaque do documento -->
+    <color name="bg_destaque">#FF161616</color>
+
+    <!-- Separadores — mesma cor do fundo, invisíveis mas mantêm estrutura -->
+    <color name="divider">#FF0E0E0E</color>
+
+    <!-- Texto -->
     <color name="texto_primario">#FFFFFFFF</color>
-    <color name="texto_secundario">#FFB3B3B3</color>
-    <color name="texto_inativo">#FF888888</color>
-    <color name="borda_card">#FF333333</color>
+    <color name="texto_secundario">#FFE2E8F0</color>
+    <color name="texto_inativo">#FF555555</color>
 
-    <!-- Gradientes -->
-    <color name="gradiente_inicio">#FF1D4D79</color>
-    <color name="gradiente_fim">#FF2E6F40</color>
+    <!-- Bordas subtis -->
+    <color name="borda_card">#FF2D2D2D</color>
 
+    <!-- Categoria ativa — azul escuro -->
+    <color name="cat_ativa_bg">#FF1E3A5F</color>
+    <color name="cat_ativa_borda">#442563EB</color>
+    <color name="cat_ativa_texto">#FFE2E8F0</color>
+    <color name="cat_ativa_icone">#FF60A5FA</color>
+
+    <!-- Categoria inativa -->
+    <color name="cat_icone_bg">#FF1F2937</color>
+    <color name="cat_icone_stroke">#FF4B5563</color>
+
+    <!-- IPMA — níveis de risco -->
+    <color name="risco_reduzido">#FF4ADE80</color>
+    <color name="risco_moderado">#FFFBBF24</color>
+    <color name="risco_elevado">#FFFB923C</color>
+    <color name="risco_muito_elevado">#FFF87171</color>
+    <color name="risco_maximo">#FFB91C1C</color>
+    <color name="risco_sem_dados">#FF555555</color>
+
+    <!-- Badge AO VIVO -->
+    <color name="badge_live">#FFDC2626</color>
+
+    <!-- Documento ativo na grelha -->
+    <color name="doc_ativo_bg">#FF1E3A5F</color>
 </resources>

@@ -1,33 +1,30 @@
 package pt.cmtb.atendimentotv
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import pt.cmtb.atendimentotv.databinding.ItemCategoriaBinding
 import pt.cmtb.atendimentotv.databinding.ItemDocumentoBinding
 
 // ============================================================
-// ADAPTADOR DE CATEGORIAS
-// Equivalente ao itemBuilder do ListView das categorias
-//
-// ListAdapter detecta automaticamente o que mudou na lista
-// e só redesenha os itens necessários — muito eficiente na TV
+// ADAPTADOR DE CATEGORIAS — Tarefa 3: grelha 2 colunas
+// O GridLayoutManager com spanCount=2 é configurado na
+// MainActivity, não aqui. O adapter é igual ao anterior.
 // ============================================================
-
 class CategoriasAdapter(
     private val onCategoriaClick: (CategoriaModel) -> Unit
 ) : ListAdapter<CategoriaModel, CategoriasAdapter.ViewHolder>(CategoriaDiff()) {
 
-    // ID da categoria atualmente selecionada
     private var categoriaAtivaId: String? = null
 
     fun setCategoriaAtiva(id: String?) {
         val anterior = categoriaAtivaId
         categoriaAtivaId = id
-        // Só redesenha os itens que mudaram de estado (selecionado ↔ normal)
         if (anterior != id) notifyDataSetChanged()
     }
 
@@ -45,25 +42,23 @@ class CategoriasAdapter(
         val categoria = getItem(position)
         val isSelected = categoria.id == categoriaAtivaId
 
+        val ctx = holder.binding.root.context
         with(holder.binding) {
             tvNomeCategoria.text = categoria.nome
 
-            // Equivalente ao gradient/color do Container do Flutter
             if (isSelected) {
-                itemCategoriaRoot.setBackgroundColor(Color.parseColor("#FF1D4D79"))
-                tvNomeCategoria.setTextColor(Color.WHITE)
-                tvNomeCategoria.setTypeface(null, android.graphics.Typeface.BOLD)
-                imgCategoria.setColorFilter(Color.WHITE)
+                itemCategoriaRoot.setBackgroundColor(ctx.getColor(R.color.cat_ativa_bg))
+                tvNomeCategoria.setTextColor(ctx.getColor(R.color.cat_ativa_texto))
+                tvNomeCategoria.setTypeface(null, Typeface.BOLD)
+                imgCategoria.setColorFilter(ctx.getColor(R.color.cat_ativa_icone))
             } else {
-                itemCategoriaRoot.setBackgroundColor(Color.parseColor("#FF1A1A1A"))
-                tvNomeCategoria.setTextColor(Color.parseColor("#FFB3B3B3"))
-                tvNomeCategoria.setTypeface(null, android.graphics.Typeface.NORMAL)
-                imgCategoria.setColorFilter(Color.parseColor("#FF888888"))
+                itemCategoriaRoot.setBackgroundColor(ctx.getColor(R.color.bg_card))
+                tvNomeCategoria.setTextColor(ctx.getColor(R.color.texto_inativo))
+                tvNomeCategoria.setTypeface(null, Typeface.NORMAL)
+                imgCategoria.setColorFilter(ctx.getColor(R.color.cat_icone_stroke))
             }
 
-            // Ícone baseado no nome — equivalente ao _getIconForCategory do Flutter
             imgCategoria.setImageResource(getIconForCategoria(categoria.nome))
-
             root.setOnClickListener { onCategoriaClick(categoria) }
         }
     }
@@ -85,20 +80,23 @@ class CategoriasAdapter(
         }
     }
 
-    // DiffUtil: o algoritmo que compara listas para saber o que mudou
     class CategoriaDiff : DiffUtil.ItemCallback<CategoriaModel>() {
-        override fun areItemsTheSame(old: CategoriaModel, new: CategoriaModel) =
-            old.id == new.id
-        override fun areContentsTheSame(old: CategoriaModel, new: CategoriaModel) =
-            old == new
+        override fun areItemsTheSame(old: CategoriaModel, new: CategoriaModel) = old.id == new.id
+        override fun areContentsTheSame(old: CategoriaModel, new: CategoriaModel) = old == new
     }
 }
 
 // ============================================================
-// ADAPTADOR DE DOCUMENTOS
-// Equivalente ao DocumentCard — lista horizontal
+// ADAPTADOR DE DOCUMENTOS — Tarefa 4: grelha 2 linhas + scroll horizontal
+//
+// A magia está no MainActivity onde configuramos:
+//   GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
+//
+// Isto significa: 2 spans na vertical (2 linhas fixas),
+// crescimento para a direita (horizontal), scroll horizontal.
+// Cada item ocupa 1 span. Com 8 docs → 4 colunas × 2 linhas.
+// Com 12 docs → 6 colunas × 2 linhas, com scroll para a direita.
 // ============================================================
-
 class DocumentosAdapter(
     private val onDocumentoClick: (DocumentoModel) -> Unit
 ) : ListAdapter<DocumentoModel, DocumentosAdapter.ViewHolder>(DocumentoDiff()) {
@@ -127,17 +125,18 @@ class DocumentosAdapter(
 
         with(holder.binding) {
             tvTituloDocumento.text = doc.titulo
-            tvDataDocumento.text = doc.dataCriacao.take(10) // mostra só a data, sem horas
+            // Mostra só a data sem horas — "2026-05-15T00:00:00" → "2026-05-15"
+            tvDataDocumento.text = doc.dataCriacao.take(10)
 
             if (isSelected) {
                 itemDocumentoRoot.setBackgroundColor(Color.parseColor("#FF1D4D79"))
                 tvTituloDocumento.setTextColor(Color.WHITE)
-                tvTituloDocumento.setTypeface(null, android.graphics.Typeface.BOLD)
+                tvTituloDocumento.setTypeface(null, Typeface.BOLD)
                 tvDataDocumento.setTextColor(Color.parseColor("#FFB3B3B3"))
             } else {
                 itemDocumentoRoot.setBackgroundColor(Color.parseColor("#FF1A1A1A"))
                 tvTituloDocumento.setTextColor(Color.parseColor("#FFB3B3B3"))
-                tvTituloDocumento.setTypeface(null, android.graphics.Typeface.NORMAL)
+                tvTituloDocumento.setTypeface(null, Typeface.NORMAL)
                 tvDataDocumento.setTextColor(Color.parseColor("#FF888888"))
             }
 
@@ -146,9 +145,15 @@ class DocumentosAdapter(
     }
 
     class DocumentoDiff : DiffUtil.ItemCallback<DocumentoModel>() {
-        override fun areItemsTheSame(old: DocumentoModel, new: DocumentoModel) =
-            old.id == new.id
-        override fun areContentsTheSame(old: DocumentoModel, new: DocumentoModel) =
-            old == new
+        override fun areItemsTheSame(old: DocumentoModel, new: DocumentoModel) = old.id == new.id
+        override fun areContentsTheSame(old: DocumentoModel, new: DocumentoModel) = old == new
+    }
+
+    // Função auxiliar chamada pela MainActivity para criar o LayoutManager correto
+    companion object {
+        fun criarLayoutManager(context: android.content.Context): GridLayoutManager {
+            // spanCount=2 + HORIZONTAL = 2 linhas fixas com scroll para a direita
+            return GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
+        }
     }
 }

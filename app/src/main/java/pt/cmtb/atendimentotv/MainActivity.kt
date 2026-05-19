@@ -1,5 +1,6 @@
 package pt.cmtb.atendimentotv
 
+import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
@@ -22,7 +23,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
-import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -33,8 +34,6 @@ import java.util.Locale
 import java.util.Timer
 import java.util.TimerTask
 
-// @OptIn resolve todos os avisos "UnstableApi" do Media3 de uma vez
-// É a forma correta de usar HlsMediaSource e DefaultHttpDataSource
 @OptIn(UnstableApi::class)
 class MainActivity : AppCompatActivity() {
 
@@ -58,9 +57,7 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        //Oculta a UI do sistema SÓ DEPOIS da interface estar desenhada
         hideSystemUi()
-
         setupRecyclerViews()
         setupExoPlayer()
         setupClock()
@@ -69,9 +66,6 @@ class MainActivity : AppCompatActivity() {
         setupNetworkCallback()
     }
 
-    // =========================================================
-    // FULLSCREEN — substitui o systemUiVisibility deprecated
-    // =========================================================
     private fun hideSystemUi() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.let { ctrl ->
@@ -90,73 +84,93 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupRecyclerViews() {
+        // --- Tarefa 3: Categorias em grelha 2 colunas ---
         categoriasAdapter = CategoriasAdapter { categoria ->
             viewModel.selecionarCategoria(categoria.id)
         }
         binding.rvCategorias.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
+            // GridLayoutManager com 2 colunas, orientação vertical (padrão)
+            layoutManager = GridLayoutManager(this@MainActivity, 2)
             adapter = categoriasAdapter
             itemAnimator = null
         }
 
+        // --- Tarefa 4: Documentos em grelha 2 linhas com scroll horizontal ---
         documentosAdapter = DocumentosAdapter { documento ->
             viewModel.selecionarDocumento(documento)
         }
         binding.rvDocumentos.apply {
-            layoutManager = LinearLayoutManager(
-                this@MainActivity,
-                LinearLayoutManager.HORIZONTAL,
-                false
-            )
+            // GridLayoutManager: 2 spans na vertical + crescimento HORIZONTAL
+            // = 2 linhas fixas, scroll para a direita quando há mais de 8 docs
+            layoutManager = DocumentosAdapter.criarLayoutManager(this@MainActivity)
             adapter = documentosAdapter
             itemAnimator = null
         }
     }
 
-    // =========================================================
-    // EXOPLAYER — @OptIn na classe trata todos os UnstableApi
-    // =========================================================
+    private fun buildMediaSource(): HlsMediaSource {
+        val dataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 11)")
+            .setConnectTimeoutMs(8000)
+            .setReadTimeoutMs(15000)
+            .setAllowCrossProtocolRedirects(true)
+        return HlsMediaSource.Factory(dataSourceFactory)
+            .createMediaSource(MediaItem.fromUri(streamUrl))
+    }
+
     private fun setupExoPlayer() {
         player = ExoPlayer.Builder(this).build().also { exo ->
             binding.playerView.player = exo
             exo.volume = 0f
-
-            val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setUserAgent("Mozilla/5.0 (Linux; Android 11)")
-                .setConnectTimeoutMs(5000)
-                .setReadTimeoutMs(10000)
-                .setAllowCrossProtocolRedirects(true)
-
-            val mediaSource = HlsMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(MediaItem.fromUri(streamUrl))
-
-            exo.setMediaSource(mediaSource)
-            exo.prepare()
             exo.playWhenReady = true
             exo.repeatMode = Player.REPEAT_MODE_ALL
 
+            exo.setMediaSource(buildMediaSource())
+            exo.prepare()
+
             var retryCount = 0
+
             exo.addListener(object : Player.Listener {
                 override fun onPlayerError(error: PlaybackException) {
+                    val isBehindWindow = error.cause is
+                            androidx.media3.exoplayer.source.BehindLiveWindowException
+
+                    if (isBehindWindow) {
+                        // BehindLiveWindowException: o player ficou para trás da
+                        // janela deslizante da stream live.
+                        // Solução: recriar a source e saltar para o live edge.
+                        android.util.Log.w("TV_PLAYER", "BehindLiveWindow — a voltar ao live edge")
+                        exo.setMediaSource(buildMediaSource())
+                        exo.prepare()
+                        // seekToDefaultPosition força o live edge imediatamente
+                        exo.seekToDefaultPosition()
+                        exo.play()
+                        return
+                    }
+
+                    // Outros erros: backoff exponencial até 5 tentativas
                     if (retryCount < 5) {
                         retryCount++
-                        val delayMs = retryCount * 3000L
+                        val delayMs = minOf(retryCount * 4000L, 20_000L)
+                        android.util.Log.w("TV_PLAYER", "Erro #$retryCount — retry em ${delayMs}ms")
                         Handler(Looper.getMainLooper()).postDelayed({
+                            exo.setMediaSource(buildMediaSource())
                             exo.prepare()
                             exo.play()
                         }, delayMs)
                     }
                 }
+
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (isPlaying) retryCount = 0
+                    if (isPlaying) {
+                        retryCount = 0
+                        android.util.Log.i("TV_PLAYER", "A reproduzir")
+                    }
                 }
             })
         }
     }
 
-    // =========================================================
-    // RELÓGIO — nome ASCII, usa schedule em vez de scheduleAtFixedRate
-    // =========================================================
     private fun setupClock() {
         val formatoHora = SimpleDateFormat("HH:mm", Locale("pt", "PT"))
         val formatoData = SimpleDateFormat("EEEE, d 'de' MMMM 'de' yyyy", Locale("pt", "PT"))
@@ -170,7 +184,6 @@ class MainActivity : AppCompatActivity() {
                 binding.tvHora.text = hora
                 binding.tvData.text = data
             }
-            // schedule em vez de scheduleAtFixedRate — evita execuções em burst
             clockTimer.schedule(object : TimerTask() {
                 override fun run() = tick()
             }, 1000L)
@@ -185,6 +198,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
 
+        // --- Dados: categorias ---
         lifecycleScope.launch {
             viewModel.boardData.collectLatest { boardData ->
                 boardData ?: return@collectLatest
@@ -192,6 +206,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // --- Categoria selecionada ---
         lifecycleScope.launch {
             viewModel.categoriaId.collectLatest { catId ->
                 categoriasAdapter.setCategoriaAtiva(catId)
@@ -202,6 +217,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // --- Documento em destaque ---
         lifecycleScope.launch {
             viewModel.destaque.collectLatest { estado ->
                 val doc = estado.documento
@@ -228,7 +244,6 @@ class MainActivity : AppCompatActivity() {
 
                 if (doc.paginas.size > 1) {
                     binding.tvPaginaIndicador.visibility = View.VISIBLE
-                    // String em res/values/strings.xml evita o aviso de tradução
                     binding.tvPaginaIndicador.text =
                         getString(R.string.indicador_pagina, pagina + 1, doc.paginas.size)
                 } else {
@@ -242,6 +257,20 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // --- Tarefa 5: Risco de Incêndio IPMA ---
+        lifecycleScope.launch {
+            viewModel.riscoIncendio.collectLatest { estado ->
+                binding.tvRiscoNivel.text = estado.nivel
+                binding.tvRiscoLocal.text = estado.local
+
+                // Pintar o texto e ícone com a cor do nível de risco
+                val cor = Color.parseColor(estado.cor)
+                binding.tvRiscoNivel.setTextColor(cor)
+                binding.imgRiscoIncendio.setColorFilter(cor)
+            }
+        }
+
+        // --- Erros ---
         lifecycleScope.launch {
             viewModel.erro.collectLatest { erro ->
                 erro ?: return@collectLatest
@@ -264,23 +293,14 @@ class MainActivity : AppCompatActivity() {
             override fun onAvailable(network: Network) {
                 Handler(Looper.getMainLooper()).postDelayed({
                     val p = player ?: return@postDelayed
-                    if (!p.isPlaying) {
-                        p.prepare()
-                        p.play()
-                    }
+                    if (!p.isPlaying) { p.prepare(); p.play() }
                 }, 2000)
             }
         })
     }
 
-    // =========================================================
-    // FORÇAR 1080p — sem deprecated, minSdk 26 garante M+
-    // =========================================================
     private fun tryForce1080p() {
-        val modes = windowManager.currentWindowMetrics.let {
-            // Tentativa via Display.Mode (API 23+, sempre disponível com minSdk 26)
-            display?.supportedModes
-        }
+        val modes = display?.supportedModes
         val modo1080p = modes?.find { it.physicalWidth == 1920 && it.physicalHeight == 1080 }
         if (modo1080p != null) {
             val lp = window.attributes

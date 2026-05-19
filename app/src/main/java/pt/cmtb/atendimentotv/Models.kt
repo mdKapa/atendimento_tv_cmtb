@@ -31,3 +31,23 @@ data class BoardData(
 data class BoardVersion(
     @SerializedName("version") val version: Int = 0
 )
+
+// ============================================================
+// IPMA - Estados de UI e Modelos de Avisos
+// ============================================================
+
+data class RiscoIncendioState(
+    val nivel: String = "A carregar...",
+    val classRisco: Int = 0,
+    val local: String = "",
+    val cor: String = "#888888"
+)
+
+data class IpmaAviso(
+    @SerializedName("idAreaAviso") val idAreaAviso: String,
+    @SerializedName("startTime")   val startTime: String,
+    @SerializedName("endTime")     val endTime: String,
+    @SerializedName("awarenessLevel") val awarenessLevel: String,
+    @SerializedName("awarenessTypeName") val awarenessTypeName: String,
+    @SerializedName("description") val description: String
+)
