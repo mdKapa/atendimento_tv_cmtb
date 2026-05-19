@@ -1,48 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Equivalente ao DocumentCard — cartão 160dp de largura na grelha horizontal -->
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/itemDocumentoRoot"
-    android:layout_width="160dp"
+    android:layout_width="140dp"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center_horizontal"
-    android:padding="16dp"
-    android:background="@color/bg_card">
+    android:padding="10dp"
+    android:layout_margin="3dp"
+    android:background="@drawable/bg_card_normal">
 
-    <!-- Ícone do documento -->
     <ImageView
-        android:layout_width="38dp"
-        android:layout_height="38dp"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
         android:src="@android:drawable/ic_menu_report_image"
         android:tint="@color/texto_inativo"
         android:contentDescription="Documento" />
 
-    <View android:layout_width="1dp" android:layout_height="16dp" />
+    <View android:layout_width="1dp" android:layout_height="8dp" />
 
-    <!-- Título -->
     <TextView
         android:id="@+id/tvTituloDocumento"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:gravity="center"
-        android:textColor="@color/texto_secundario"
-        android:textSize="15sp"
+        android:textColor="@color/texto_inativo"
+        android:textSize="11sp"
         android:maxLines="3"
         android:ellipsize="end"
         android:lineSpacingMultiplier="1.2" />
 
-    <View android:layout_width="1dp" android:layout_height="8dp" />
+    <View android:layout_width="1dp" android:layout_height="4dp" />
 
-    <!-- Data -->
     <TextView
         android:id="@+id/tvDataDocumento"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
         android:textColor="@color/texto_inativo"
-        android:textSize="12sp"
+        android:textSize="10sp"
         android:maxLines="1"
         android:ellipsize="end" />
 

@@ -1,6 +1,5 @@
 package pt.cmtb.atendimentotv
 
-import android.graphics.Color
 import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -12,9 +11,10 @@ import pt.cmtb.atendimentotv.databinding.ItemCategoriaBinding
 import pt.cmtb.atendimentotv.databinding.ItemDocumentoBinding
 
 // ============================================================
-// ADAPTADOR DE CATEGORIAS — Tarefa 3: grelha 2 colunas
-// O GridLayoutManager com spanCount=2 é configurado na
-// MainActivity, não aqui. O adapter é igual ao anterior.
+// ADAPTADOR DE CATEGORIAS
+// Grelha 3 colunas × 2 linhas (máximo 6 categorias).
+// Categorias sem documentos são ocultadas pelo ViewModel antes
+// de chegarem aqui — a grelha mantém sempre 3 colunas.
 // ============================================================
 class CategoriasAdapter(
     private val onCategoriaClick: (CategoriaModel) -> Unit
@@ -41,18 +41,20 @@ class CategoriasAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val categoria = getItem(position)
         val isSelected = categoria.id == categoriaAtivaId
-
         val ctx = holder.binding.root.context
+
         with(holder.binding) {
             tvNomeCategoria.text = categoria.nome
 
             if (isSelected) {
-                itemCategoriaRoot.setBackgroundColor(ctx.getColor(R.color.cat_ativa_bg))
+                // Drawable com cantos redondos + cor azul + borda
+                itemCategoriaRoot.setBackgroundResource(R.drawable.bg_card_ativo)
                 tvNomeCategoria.setTextColor(ctx.getColor(R.color.cat_ativa_texto))
                 tvNomeCategoria.setTypeface(null, Typeface.BOLD)
                 imgCategoria.setColorFilter(ctx.getColor(R.color.cat_ativa_icone))
             } else {
-                itemCategoriaRoot.setBackgroundColor(ctx.getColor(R.color.bg_card))
+                // Drawable com cantos redondos + cor escura
+                itemCategoriaRoot.setBackgroundResource(R.drawable.bg_card_normal)
                 tvNomeCategoria.setTextColor(ctx.getColor(R.color.texto_inativo))
                 tvNomeCategoria.setTypeface(null, Typeface.NORMAL)
                 imgCategoria.setColorFilter(ctx.getColor(R.color.cat_icone_stroke))
@@ -84,18 +86,21 @@ class CategoriasAdapter(
         override fun areItemsTheSame(old: CategoriaModel, new: CategoriaModel) = old.id == new.id
         override fun areContentsTheSame(old: CategoriaModel, new: CategoriaModel) = old == new
     }
+
+    companion object {
+        // 3 colunas fixas — sempre 3×2 independentemente do nº de categorias
+        fun criarLayoutManager(context: android.content.Context): GridLayoutManager {
+            val lm = GridLayoutManager(context, 3)
+            // Espaço uniforme de 4dp entre todas as células
+            return lm
+        }
+    }
 }
 
 // ============================================================
-// ADAPTADOR DE DOCUMENTOS — Tarefa 4: grelha 2 linhas + scroll horizontal
-//
-// A magia está no MainActivity onde configuramos:
-//   GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
-//
-// Isto significa: 2 spans na vertical (2 linhas fixas),
-// crescimento para a direita (horizontal), scroll horizontal.
-// Cada item ocupa 1 span. Com 8 docs → 4 colunas × 2 linhas.
-// Com 12 docs → 6 colunas × 2 linhas, com scroll para a direita.
+// ADAPTADOR DE DOCUMENTOS
+// Grelha 2 linhas fixas com scroll horizontal.
+// GridLayoutManager(spanCount=2, HORIZONTAL) = 2 linhas × N colunas.
 // ============================================================
 class DocumentosAdapter(
     private val onDocumentoClick: (DocumentoModel) -> Unit
@@ -122,22 +127,22 @@ class DocumentosAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val doc = getItem(position)
         val isSelected = doc.id == documentoAtivoId
+        val ctx = holder.binding.root.context
 
         with(holder.binding) {
             tvTituloDocumento.text = doc.titulo
-            // Mostra só a data sem horas — "2026-05-15T00:00:00" → "2026-05-15"
             tvDataDocumento.text = doc.dataCriacao.take(10)
 
             if (isSelected) {
-                itemDocumentoRoot.setBackgroundColor(Color.parseColor("#FF1D4D79"))
-                tvTituloDocumento.setTextColor(Color.WHITE)
+                itemDocumentoRoot.setBackgroundResource(R.drawable.bg_doc_ativo)
+                tvTituloDocumento.setTextColor(ctx.getColor(R.color.cat_ativa_texto))
                 tvTituloDocumento.setTypeface(null, Typeface.BOLD)
-                tvDataDocumento.setTextColor(Color.parseColor("#FFB3B3B3"))
+                tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_secundario))
             } else {
-                itemDocumentoRoot.setBackgroundColor(Color.parseColor("#FF1A1A1A"))
-                tvTituloDocumento.setTextColor(Color.parseColor("#FFB3B3B3"))
+                itemDocumentoRoot.setBackgroundResource(R.drawable.bg_card_normal)
+                tvTituloDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
                 tvTituloDocumento.setTypeface(null, Typeface.NORMAL)
-                tvDataDocumento.setTextColor(Color.parseColor("#FF888888"))
+                tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
             }
 
             root.setOnClickListener { onDocumentoClick(doc) }
@@ -149,11 +154,9 @@ class DocumentosAdapter(
         override fun areContentsTheSame(old: DocumentoModel, new: DocumentoModel) = old == new
     }
 
-    // Função auxiliar chamada pela MainActivity para criar o LayoutManager correto
     companion object {
-        fun criarLayoutManager(context: android.content.Context): GridLayoutManager {
-            // spanCount=2 + HORIZONTAL = 2 linhas fixas com scroll para a direita
-            return GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
-        }
+        // 2 linhas fixas + scroll horizontal
+        fun criarLayoutManager(context: android.content.Context): GridLayoutManager =
+            GridLayoutManager(context, 2, GridLayoutManager.HORIZONTAL, false)
     }
 }

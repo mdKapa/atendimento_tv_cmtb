@@ -39,7 +39,7 @@ data class BoardVersion(
 data class RiscoIncendioState(
     val nivel: String = "A carregar...",
     val classRisco: Int = 0,
-    val local: String = "",
+    val local: String = IpmaClient.NOME_LOCAL,
     val cor: String = "#888888"
 )
 

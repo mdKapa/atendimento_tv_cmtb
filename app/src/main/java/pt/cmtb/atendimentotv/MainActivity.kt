@@ -1,6 +1,5 @@
 package pt.cmtb.atendimentotv
 
-import android.graphics.Color
 import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
@@ -23,7 +22,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
-import androidx.recyclerview.widget.GridLayoutManager
 import com.bumptech.glide.Glide
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -66,6 +64,9 @@ class MainActivity : AppCompatActivity() {
         setupNetworkCallback()
     }
 
+    // =========================================================
+    // FULLSCREEN
+    // =========================================================
     private fun hideSystemUi() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             window.insetsController?.let { ctrl ->
@@ -83,31 +84,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // =========================================================
+    // RECYCLERVIEW — grelha 3×2 categorias + 2 linhas documentos
+    // =========================================================
     private fun setupRecyclerViews() {
-        // --- Tarefa 3: Categorias em grelha 2 colunas ---
         categoriasAdapter = CategoriasAdapter { categoria ->
             viewModel.selecionarCategoria(categoria.id)
         }
         binding.rvCategorias.apply {
-            // GridLayoutManager com 2 colunas, orientação vertical (padrão)
-            layoutManager = GridLayoutManager(this@MainActivity, 2)
+            layoutManager = CategoriasAdapter.criarLayoutManager(this@MainActivity)
             adapter = categoriasAdapter
             itemAnimator = null
+            addItemDecoration(GridSpacingDecoration(3, 4.dpToPx()))
         }
 
-        // --- Tarefa 4: Documentos em grelha 2 linhas com scroll horizontal ---
         documentosAdapter = DocumentosAdapter { documento ->
             viewModel.selecionarDocumento(documento)
         }
         binding.rvDocumentos.apply {
-            // GridLayoutManager: 2 spans na vertical + crescimento HORIZONTAL
-            // = 2 linhas fixas, scroll para a direita quando há mais de 8 docs
             layoutManager = DocumentosAdapter.criarLayoutManager(this@MainActivity)
             adapter = documentosAdapter
             itemAnimator = null
         }
     }
 
+    private fun Int.dpToPx(): Int =
+        (this * resources.displayMetrics.density).toInt()
+
+    // =========================================================
+    // EXOPLAYER — HLS com recuperação de BehindLiveWindow
+    // =========================================================
     private fun buildMediaSource(): HlsMediaSource {
         val dataSourceFactory = DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Linux; Android 11)")
@@ -136,19 +142,14 @@ class MainActivity : AppCompatActivity() {
                             androidx.media3.exoplayer.source.BehindLiveWindowException
 
                     if (isBehindWindow) {
-                        // BehindLiveWindowException: o player ficou para trás da
-                        // janela deslizante da stream live.
-                        // Solução: recriar a source e saltar para o live edge.
                         android.util.Log.w("TV_PLAYER", "BehindLiveWindow — a voltar ao live edge")
                         exo.setMediaSource(buildMediaSource())
                         exo.prepare()
-                        // seekToDefaultPosition força o live edge imediatamente
                         exo.seekToDefaultPosition()
                         exo.play()
                         return
                     }
 
-                    // Outros erros: backoff exponencial até 5 tentativas
                     if (retryCount < 5) {
                         retryCount++
                         val delayMs = minOf(retryCount * 4000L, 20_000L)
@@ -171,6 +172,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // =========================================================
+    // RELÓGIO
+    // =========================================================
     private fun setupClock() {
         val formatoHora = SimpleDateFormat("HH:mm", Locale("pt", "PT"))
         val formatoData = SimpleDateFormat("EEEE, d 'de' MMMM 'de' yyyy", Locale("pt", "PT"))
@@ -191,14 +195,20 @@ class MainActivity : AppCompatActivity() {
         tick()
     }
 
+    // =========================================================
+    // BOTÕES DE NAVEGAÇÃO DE PÁGINA
+    // =========================================================
     private fun setupBotoesPagina() {
         binding.btnPaginaAnterior.setOnClickListener { viewModel.recuarPagina() }
         binding.btnPaginaSeguinte.setOnClickListener { viewModel.avancarPagina() }
     }
 
+    // =========================================================
+    // OBSERVAR VIEWMODEL
+    // =========================================================
     private fun observeViewModel() {
 
-        // --- Dados: categorias ---
+        // Categorias (já filtradas pelo ViewModel — sem documentos = ocultas)
         lifecycleScope.launch {
             viewModel.boardData.collectLatest { boardData ->
                 boardData ?: return@collectLatest
@@ -206,7 +216,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // --- Categoria selecionada ---
+        // Categoria selecionada
         lifecycleScope.launch {
             viewModel.categoriaId.collectLatest { catId ->
                 categoriasAdapter.setCategoriaAtiva(catId)
@@ -217,7 +227,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // --- Documento em destaque ---
+        // Documento em destaque + navegação de páginas
         lifecycleScope.launch {
             viewModel.destaque.collectLatest { estado ->
                 val doc = estado.documento
@@ -257,20 +267,27 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // --- Tarefa 5: Risco de Incêndio IPMA ---
+        // IPMA — Risco de Incêndio
         lifecycleScope.launch {
             viewModel.riscoIncendio.collectLatest { estado ->
                 binding.tvRiscoNivel.text = estado.nivel
                 binding.tvRiscoLocal.text = estado.local
 
-                // Pintar o texto e ícone com a cor do nível de risco
-                val cor = Color.parseColor(estado.cor)
+                val corRes = when (estado.classRisco) {
+                    1    -> R.color.risco_reduzido
+                    2    -> R.color.risco_moderado
+                    3    -> R.color.risco_elevado
+                    4    -> R.color.risco_muito_elevado
+                    5    -> R.color.risco_maximo
+                    else -> R.color.risco_sem_dados
+                }
+                val cor = getColor(corRes)
                 binding.tvRiscoNivel.setTextColor(cor)
                 binding.imgRiscoIncendio.setColorFilter(cor)
             }
         }
 
-        // --- Erros ---
+        // Erros de rede
         lifecycleScope.launch {
             viewModel.erro.collectLatest { erro ->
                 erro ?: return@collectLatest
@@ -280,13 +297,19 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+    // =========================================================
+    // DETEÇÃO DE TOQUE — reset do temporizador de inatividade
+    // =========================================================
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
         if (ev?.action == MotionEvent.ACTION_DOWN) {
             viewModel.resetInactivityTimer()
         }
         return super.dispatchTouchEvent(ev)
     }
 
+    // =========================================================
+    // RECONEXÃO DE REDE
+    // =========================================================
     private fun setupNetworkCallback() {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
@@ -299,6 +322,9 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    // =========================================================
+    // FORÇAR 1080p
+    // =========================================================
     private fun tryForce1080p() {
         val modes = display?.supportedModes
         val modo1080p = modes?.find { it.physicalWidth == 1920 && it.physicalHeight == 1080 }
@@ -309,6 +335,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // =========================================================
+    // CICLO DE VIDA
+    // =========================================================
     override fun onResume() {
         super.onResume()
         hideSystemUi()
