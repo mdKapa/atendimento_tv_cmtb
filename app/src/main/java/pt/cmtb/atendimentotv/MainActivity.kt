@@ -268,22 +268,43 @@ class MainActivity : AppCompatActivity() {
         }
 
         // IPMA — Risco de Incêndio
+        // IPMA — HOJE
         lifecycleScope.launch {
-            viewModel.riscoIncendio.collectLatest { estado ->
-                binding.tvRiscoNivel.text = estado.nivel
-                binding.tvRiscoLocal.text = estado.local
+            viewModel.ipmaHoje.collectLatest { estado ->
+                // NOTA: Como usamos <include>, precisamos de usar a referência correta gerada pelo ViewBinding
+                val card = binding.cardHoje
 
-                val corRes = when (estado.classRisco) {
-                    1    -> R.color.risco_reduzido
-                    2    -> R.color.risco_moderado
-                    3    -> R.color.risco_elevado
-                    4    -> R.color.risco_muito_elevado
-                    5    -> R.color.risco_maximo
-                    else -> R.color.risco_sem_dados
-                }
-                val cor = getColor(corRes)
-                binding.tvRiscoNivel.setTextColor(cor)
-                binding.imgRiscoIncendio.setColorFilter(cor)
+                // Forçamos a leitura dos títulos a partir do strings.xml
+                card.tvTituloDia.text = getString(R.string.ipma_hoje)
+
+                // Verificamos se o estado ainda não foi atualizado pela API. Se for o caso, usamos o "A carregar..." / "(N/D)" do strings.xml
+                card.tvTempoDescricao.text = if (estado.descricaoTempo.contains("carregar") || estado.descricaoTempo == "--") getString(R.string.ipma_a_carregar) else estado.descricaoTempo
+                card.tvTempoMinMax.text = estado.tempMaxMin
+
+                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else estado.riscoNivel
+
+                // Prevenção de crash (fallback para cinza) caso a cor venha inválida
+                val cor = try { android.graphics.Color.parseColor(estado.riscoCor) } catch(e: Exception) { android.graphics.Color.GRAY }
+                card.tvRiscoNivel.setTextColor(cor)
+                card.imgRiscoIncendio.setColorFilter(cor)
+            }
+        }
+
+        // IPMA — AMANHÃ
+        lifecycleScope.launch {
+            viewModel.ipmaAmanha.collectLatest { estado ->
+                val card = binding.cardAmanha
+
+                card.tvTituloDia.text = getString(R.string.ipma_amanha)
+
+                card.tvTempoDescricao.text = if (estado.descricaoTempo.contains("carregar") || estado.descricaoTempo == "--") getString(R.string.ipma_a_carregar) else estado.descricaoTempo
+                card.tvTempoMinMax.text = estado.tempMaxMin
+
+                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else estado.riscoNivel
+
+                val cor = try { android.graphics.Color.parseColor(estado.riscoCor) } catch(e: Exception) { android.graphics.Color.GRAY }
+                card.tvRiscoNivel.setTextColor(cor)
+                card.imgRiscoIncendio.setColorFilter(cor)
             }
         }
 

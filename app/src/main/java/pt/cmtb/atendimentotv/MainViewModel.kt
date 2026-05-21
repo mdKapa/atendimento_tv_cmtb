@@ -3,6 +3,7 @@ package pt.cmtb.atendimentotv
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,9 +42,13 @@ class MainViewModel : ViewModel() {
     private val _appMode = MutableStateFlow(AppMode.AUTOMATICO)
     val appMode: StateFlow<AppMode> = _appMode.asStateFlow()
 
-    // --- IPMA: Risco de Incêndio ---
-    private val _riscoIncendio = MutableStateFlow(RiscoIncendioState())
-    val riscoIncendio: StateFlow<RiscoIncendioState> = _riscoIncendio.asStateFlow()
+    // --- ESTADOS IPMA (HOJE e AMANHÃ) ---
+    // Mantemos os títulos limpos para o UI assumir via strings.xml
+    private val _ipmaHoje = MutableStateFlow(IpmaWidgetState("Hoje"))
+    val ipmaHoje: StateFlow<IpmaWidgetState> = _ipmaHoje.asStateFlow()
+
+    private val _ipmaAmanha = MutableStateFlow(IpmaWidgetState("Amanhã"))
+    val ipmaAmanha: StateFlow<IpmaWidgetState> = _ipmaAmanha.asStateFlow()
 
     // --- Timers e jobs ---
     private var inactivityJob: Job? = null
@@ -57,12 +62,15 @@ class MainViewModel : ViewModel() {
     private var pollingJob: Job? = null
     private var ipmaJob: Job? = null
 
+    // --- Constantes do IPMA ---
+    private val DICO_TERRAS_DE_BOURO = "0310" // Código DICO para o Risco de Incêndio
+    private val GLOBAL_ID_BRAGA = 1030300     // Código Global (Distrito) para o Tempo
+
     init {
         fetchBoardData()
         startVersionPolling()
         startInactivityTimer()
-        fetchRiscoIncendio()
-        startIpmaPolling()
+        startIpmaPolling() // Corrigido: Estava duplicado na tua versão
     }
 
     // =========================================================
@@ -112,7 +120,7 @@ class MainViewModel : ViewModel() {
     }
 
     // =========================================================
-    // FUNÇÕES PRIVADAS
+    // LÓGICA DO QUADRO PRINCIPAL (API INTERNA)
     // =========================================================
 
     private fun fetchBoardData() {
@@ -120,27 +128,16 @@ class MainViewModel : ViewModel() {
             _isLoading.value = true
             _erro.value = null
             try {
-                // 1. Recebemos os dados brutos e normalizados da API
                 val rawData = ApiClient.service.fetchBoardData()
-
-                // 2. Extraímos apenas os IDs das categorias que estão associadas a pelo menos 1 documento.
-                // Usamos toSet() para eliminar IDs duplicados e garantir procuras ultrarrápidas O(1)
                 val idsComDocumentos = rawData.documentos.map { it.categoriaId }.toSet()
 
-                // 3. Filtramos a lista bruta de categorias:
-                // - A categoria tem de existir no Set idsComDocumentos
-                // - Bloqueamos no máximo a 6 elementos (.take(6)) para garantir as 3x2 linhas na grelha da TV
                 val categoriasFiltradas = rawData.categorias
                     .filter { categoria -> categoria.id in idsComDocumentos }
                     .take(6)
 
-                // 4. Criamos uma cópia do BoardData injetando apenas as categorias válidas
                 val dataFiltrada = rawData.copy(categorias = categoriasFiltradas)
-
-                // 5. Atualizamos a UI com os dados limpos
                 _boardData.value = dataFiltrada
 
-                // 6. Selecionamos a 1ª categoria automaticamente (agora garantimos que ela tem documentos!)
                 if (_categoriaId.value == null && categoriasFiltradas.isNotEmpty()) {
                     selecionarCategoria(categoriasFiltradas.first().id)
                 }
@@ -166,58 +163,93 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    // Busca o risco de incêndio para hoje (RCM) — chamada única imediata
-    private fun fetchRiscoIncendio() {
+    // =========================================================
+    // IPMA: Coroutines Paralelas (Risco PIR + Estado do Tempo)
+    // =========================================================
+
+    private fun fetchIpmaDataConcorrente() {
         viewModelScope.launch {
             try {
-                // 1. Faz a chamada ao endpoint correto de RCM (idDay = 0)
-                val response = IpmaClient.service.fetchRcm(0)
+                // 1. Disparamos os 4 pedidos de rede SIMULTANEAMENTE (Performance Máxima)
+                val reqRcmHoje = async { IpmaClient.service.fetchRcm(0) }
+                val reqRcmAmanha = async { IpmaClient.service.fetchRcm(1) }
+                val reqTempoHoje = async { IpmaClient.service.fetchPrevisaoTempo(0) }
+                val reqTempoAmanha = async { IpmaClient.service.fetchPrevisaoTempo(1) }
 
-                // 2. Procura na lista o nó que corresponde ao concelho de Terras de Bouro
-                // Nota: IpmaRcmResposta.local é um Map<String, IpmaRcmConcelho>
-                val concelho = response.local[IpmaClient.DICO_TERRAS_DE_BOURO]
+                // 2. Aguardamos que TODOS os 4 terminem
+                val resRcmHoje = reqRcmHoje.await()
+                val resRcmAmanha = reqRcmAmanha.await()
+                val resTempoHoje = reqTempoHoje.await()
+                val resTempoAmanha = reqTempoAmanha.await()
 
-                if (concelho != null) {
-                    val rcmValue = concelho.data.rcm // Será um número de 1 a 5
+                // 3. Processar Dados de HOJE
+                val rcmHoje = resRcmHoje.local[DICO_TERRAS_DE_BOURO]?.data?.rcm ?: 0
+                val tempoHoje = resTempoHoje.data.find { it.globalIdLocal == GLOBAL_ID_BRAGA }
 
-                    // 3. Usa os métodos brilhantes que criaste no IpmaClient para formatar a UI
-                    _riscoIncendio.value = RiscoIncendioState(
-                        nivel = IpmaClient.nivelTexto(rcmValue),
-                        classRisco = rcmValue,
-                        local = IpmaClient.NOME_LOCAL,
-                        cor = IpmaClient.nivelCor(rcmValue)
-                    )
-                } else {
-                    // DICO não encontrado na lista do IPMA (falha rara na API deles)
-                    _riscoIncendio.value = RiscoIncendioState(
-                        nivel = "Sem dados",
-                        classRisco = 0,
-                        local = IpmaClient.NOME_LOCAL,
-                        cor = "#888888"
+                if (tempoHoje != null) {
+                    _ipmaHoje.value = _ipmaHoje.value.copy(
+                        descricaoTempo = mapearIdTempo(tempoHoje.idWeatherType),
+                        tempMaxMin = "${tempoHoje.tMin}º | ${tempoHoje.tMax}º",
+                        riscoNivel = IpmaClient.nivelTexto(rcmHoje),
+                        classRisco = rcmHoje,
+                        riscoCor = IpmaClient.nivelCor(rcmHoje)
                     )
                 }
+
+                // 4. Processar Dados de AMANHÃ
+                val rcmAmanha = resRcmAmanha.local[DICO_TERRAS_DE_BOURO]?.data?.rcm ?: 0
+                val tempoAmanha = resTempoAmanha.data.find { it.globalIdLocal == GLOBAL_ID_BRAGA }
+
+                if (tempoAmanha != null) {
+                    _ipmaAmanha.value = _ipmaAmanha.value.copy(
+                        descricaoTempo = mapearIdTempo(tempoAmanha.idWeatherType),
+                        tempMaxMin = "${tempoAmanha.tMin}º | ${tempoAmanha.tMax}º",
+                        riscoNivel = IpmaClient.nivelTexto(rcmAmanha),
+                        classRisco = rcmAmanha,
+                        riscoCor = IpmaClient.nivelCor(rcmAmanha)
+                    )
+                }
+
             } catch (e: Exception) {
-                android.util.Log.e("IPMA", "Erro ao carregar RCM: ${e.message}")
-                _riscoIncendio.value = RiscoIncendioState(
-                    nivel = "Indisponível",
-                    classRisco = 0,
-                    local = IpmaClient.NOME_LOCAL,
-                    cor = "#888888"
-                )
+                android.util.Log.e("IPMA", "Erro ao carregar dados do IPMA: ${e.message}")
             }
         }
     }
 
-    // O teu Polling de 1 hora está perfeito e não precisa de alterações!
     private fun startIpmaPolling() {
         ipmaJob?.cancel()
         ipmaJob = viewModelScope.launch {
             while (isActive) {
-                delay(60 * 60 * 1000L) // 1 hora
-                fetchRiscoIncendio()
+                fetchIpmaDataConcorrente()
+                delay(60 * 60 * 1000L) // Atualiza de 1 em 1 hora
             }
         }
     }
+
+    /**
+     * Mapeia o código do estado do tempo da API do IPMA para String legível.
+     * Textos abreviados para garantir que não quebram o layout no ecrã da TV.
+     */
+    private fun mapearIdTempo(id: Int): String {
+        return when (id) {
+            1 -> "Céu Limpo"
+            2 -> "Pouco Nublado"
+            3 -> "Parc. Nublado"
+            4 -> "Muito Nublado"
+            5 -> "Céu Encoberto"
+            6, 7, 8 -> "Aguaceiros"
+            9, 10, 11 -> "Chuva"
+            12 -> "Chuva/Neve"
+            13, 14 -> "Neve"
+            15 -> "Trovoada"
+            16, 17 -> "Nevoeiro"
+            else -> "Variável"
+        }
+    }
+
+    // =========================================================
+    // CONTROLO DE INATIVIDADE E SLIDESHOW
+    // =========================================================
 
     private fun startInactivityTimer() {
         inactivityJob?.cancel()

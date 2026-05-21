@@ -83,6 +83,9 @@ interface IpmaApiService {
 
     @GET("open-data/forecast/warnings/warnings_www.json")
     suspend fun fetchAvisos(): List<IpmaAviso>
+
+    @GET("open-data/forecast/meteorology/cities/daily/hp-daily-forecast-day{idDay}.json")
+    suspend fun fetchPrevisaoTempo(@Path("idDay") idDay: Int): IpmaForecastResponse
 }
 
 object IpmaClient {

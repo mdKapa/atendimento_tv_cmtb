@@ -1,4 +1,25 @@
 <resources>
     <string name="app_name">AtendimentoTV</string>
     <string name="indicador_pagina">Página %1$d de %2$d</string>
+
+
+    <!-- Módulo IPMA -->
+    <string name="ipma_local">Previsão Local</string>
+    <string name="ipma_fonte">Fonte: IPMA</string>
+    <string name="ipma_hoje">Hoje</string>
+    <string name="ipma_amanha">Amanhã</string>
+    <string name="ipma_risco_incendio_pir">Risco de Incêndio (PIR)</string>
+    <string name="ipma_a_carregar">N/D</string>
+
+    <!-- Descrições de Acessibilidade (Evitam o aviso Hardcoded ‘string’) -->
+    <string name="desc_logotipo">Logótipo do Município</string>
+    <string name="desc_documento_destaque">Documento em destaque</string>
+    <string name="desc_estado_tempo">Estado do Tempo</string>
+    <string name="desc_risco_incendio">Nível de Risco de Incêndio</string>
+
+    <!-- Placeholders de UI (Evitam o aviso Hardcoded string) -->
+    <string name="placeholder_hora">00:00</string>
+    <string name="placeholder_data">Segunda-feira, 1 de janeiro de 2026</string>
+    <string name="ui_selecione_documento">Selecione um documento</string>
+
 </resources>
