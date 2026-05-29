@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Largura máxima da secção IPMA: mantém proporção ~55" e centra em colunas mais largas (ex.: 75") -->
+    <dimen name="ipma_section_max_width">592dp</dimen>
+    <dimen name="ipma_section_max_height">120dp</dimen>
+    <!-- 2 linhas × 64dp + margens (grelha 2×2, 4 categorias) -->
+    <dimen name="categorias_grid_height">148dp</dimen>
+</resources>

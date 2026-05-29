@@ -12,7 +12,7 @@ import pt.cmtb.atendimentotv.databinding.ItemDocumentoBinding
 
 // ============================================================
 // ADAPTADOR DE CATEGORIAS
-// Grelha 2 colunas × 3 linhas (máximo 6 categorias).
+// Grelha 2 colunas × 2 linhas (4 categorias: 3 API + Eventos).
 // Categorias sem documentos são ocultadas pelo ViewModel antes
 // de chegarem aqui — a grelha mantém sempre 2 colunas.
 // ============================================================
@@ -55,12 +55,17 @@ class CategoriasAdapter(
             } else {
                 // Drawable com cantos redondos + cor escura
                 itemCategoriaRoot.setBackgroundResource(R.drawable.bg_card_normal)
-                tvNomeCategoria.setTextColor(ctx.getColor(R.color.texto_inativo))
+                tvNomeCategoria.setTextColor(ctx.getColor(R.color.cat_texto))
                 tvNomeCategoria.setTypeface(null, Typeface.NORMAL)
                 imgCategoria.setColorFilter(ctx.getColor(R.color.cat_icone_stroke))
             }
 
-            imgCategoria.setImageResource(getIconForCategoria(categoria.nome))
+            val iconRes = if (categoria.id == CategoriaEstatica.EVENTOS_ID) {
+                R.drawable.cat_calendar
+            } else {
+                getIconForCategoria(categoria.nome)
+            }
+            imgCategoria.setImageResource(iconRes)
             root.setOnClickListener { onCategoriaClick(categoria) }
         }
     }
@@ -68,17 +73,17 @@ class CategoriasAdapter(
     private fun getIconForCategoria(nome: String): Int {
         val lower = nome.lowercase()
         return when {
-            lower.contains("editais") || lower.contains("avisos") ->
-                android.R.drawable.ic_menu_send
-            lower.contains("cultura") || lower.contains("lazer") ->
-                android.R.drawable.ic_menu_gallery
-            lower.contains("turismo") ->
-                android.R.drawable.ic_menu_mapmode
+            lower.contains("informações") || lower.contains("avisos") ->
+                R.drawable.cat_avisos
+            lower.contains("eventos") || lower.contains("agenda") ->
+                R.drawable.cat_calendar
+            lower.contains("calendário") ->
+                R.drawable.cat_calendar
             lower.contains("serviços") || lower.contains("servicos") ->
-                android.R.drawable.ic_menu_preferences
+                R.drawable.cat_folders
             lower.contains("notícias") || lower.contains("noticias") ->
-                android.R.drawable.ic_menu_info_details
-            else -> android.R.drawable.ic_menu_agenda
+                R.drawable.cat_folders
+            else ->  R.drawable.cat_folders
         }
     }
 
@@ -88,7 +93,7 @@ class CategoriasAdapter(
     }
 
     companion object {
-        // 2 colunas fixas — sempre 2×3 independentemente do nº de categorias
+        // 2 colunas fixas — grelha 2×2 (4 categorias)
         fun criarLayoutManager(context: android.content.Context): GridLayoutManager {
             val lm = GridLayoutManager(context, 2)
             // Espaço uniforme de 4dp entre todas as células
@@ -141,24 +146,16 @@ class DocumentosAdapter(
                 tvTituloDocumento.setTextColor(ctx.getColor(R.color.cat_ativa_texto))
                 tvTituloDocumento.setTypeface(null, Typeface.BOLD)
 
-                // Data
                 tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_secundario))
-
-                // Pinta o ícone da mesma cor clara do título ativo (caso decidas mantê-lo)
-                imgDocIcon.setColorFilter(ctx.getColor(R.color.cat_ativa_texto))
             } else {
                 // Fundo Normal/Inativo
                 itemDocumentoRoot.setBackgroundResource(R.drawable.bg_card_normal)
 
                 // Título normal (Cor inativa e sem Bold)
-                tvTituloDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
+                tvTituloDocumento.setTextColor(ctx.getColor(R.color.cat_texto))
                 tvTituloDocumento.setTypeface(null, Typeface.NORMAL)
 
-                // Data
                 tvDataDocumento.setTextColor(ctx.getColor(R.color.texto_inativo))
-
-                // Ícone escuro/inativo
-                imgDocIcon.setColorFilter(ctx.getColor(R.color.texto_inativo))
             }
 
             root.setOnClickListener { onDocumentoClick(doc) }

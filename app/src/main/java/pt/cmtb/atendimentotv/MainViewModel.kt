@@ -13,6 +13,9 @@ import kotlinx.coroutines.launch
 
 enum class AppMode { MANUAL, AUTOMATICO }
 
+/** Conteúdo do palco de destaque: documentos (interação) ou página de eventos (inatividade). */
+enum class DestaqueModo { DOCUMENTO, VISTA_EVENTOS }
+
 data class DestaqueUiState(
     val documento: DocumentoModel? = null,
     val paginaAtual: Int = 0
@@ -23,6 +26,10 @@ class MainViewModel : ViewModel() {
     // --- Dados da API interna ---
     private val _boardData = MutableStateFlow<BoardData?>(null)
     val boardData: StateFlow<BoardData?> = _boardData.asStateFlow()
+
+    /** Categorias da API (máx. 3) + «Eventos» fixa = 4 botões na grelha. */
+    private val _categoriasUi = MutableStateFlow(listOf(CategoriaEstatica.EVENTOS))
+    val categoriasUi: StateFlow<List<CategoriaModel>> = _categoriasUi.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -37,6 +44,13 @@ class MainViewModel : ViewModel() {
     // --- Documento em destaque ---
     private val _destaque = MutableStateFlow(DestaqueUiState())
     val destaque: StateFlow<DestaqueUiState> = _destaque.asStateFlow()
+
+    private val _destaqueModo = MutableStateFlow(DestaqueModo.VISTA_EVENTOS)
+    val destaqueModo: StateFlow<DestaqueModo> = _destaqueModo.asStateFlow()
+
+    /** Incrementa para forçar recarga do site de eventos no URL inicial. */
+    private val _webResetTrigger = MutableStateFlow(0L)
+    val webResetTrigger: StateFlow<Long> = _webResetTrigger.asStateFlow()
 
     // --- Modo da app ---
     private val _appMode = MutableStateFlow(AppMode.AUTOMATICO)
@@ -69,24 +83,44 @@ class MainViewModel : ViewModel() {
     init {
         fetchBoardData()
         startVersionPolling()
-        startInactivityTimer()
-        startIpmaPolling() // Corrigido: Estava duplicado na tua versão
+        startIpmaPolling()
+        enterIdleMode()
     }
 
     // =========================================================
     // FUNÇÕES PÚBLICAS
     // =========================================================
 
+    /** Reinicia o temporizador sem sair da vista de eventos (toque genérico no ecrã). */
     fun resetInactivityTimer() {
+        startInactivityTimer()
+    }
+
+    private fun enterManualMode() {
         if (_appMode.value != AppMode.MANUAL) {
             _appMode.value = AppMode.MANUAL
             stopSlideshow()
         }
+        _destaqueModo.value = DestaqueModo.DOCUMENTO
+        startInactivityTimer()
+    }
+
+    private fun enterIdleMode() {
+        _appMode.value = AppMode.AUTOMATICO
+        _destaqueModo.value = DestaqueModo.VISTA_EVENTOS
+        _categoriaId.value = CategoriaEstatica.EVENTOS_ID
+        _destaque.value = DestaqueUiState()
+        stopSlideshow()
+        _webResetTrigger.value++
         startInactivityTimer()
     }
 
     fun selecionarCategoria(categoriaId: String) {
-        resetInactivityTimer()
+        if (categoriaId == CategoriaEstatica.EVENTOS_ID) {
+            selecionarVistaEventos()
+            return
+        }
+        enterManualMode()
         _categoriaId.value = categoriaId
         val docs = _boardData.value?.documentos
             ?.filter { it.categoriaId == categoriaId }
@@ -97,13 +131,26 @@ class MainViewModel : ViewModel() {
         )
     }
 
+    /** Categoria estática «Eventos» — abre o website no palco (sem documentos). */
+    fun selecionarVistaEventos() {
+        if (_appMode.value != AppMode.MANUAL) {
+            _appMode.value = AppMode.MANUAL
+            stopSlideshow()
+        }
+        _destaqueModo.value = DestaqueModo.VISTA_EVENTOS
+        _categoriaId.value = CategoriaEstatica.EVENTOS_ID
+        _destaque.value = DestaqueUiState()
+        startInactivityTimer()
+    }
+
     fun selecionarDocumento(doc: DocumentoModel) {
-        resetInactivityTimer()
+        enterManualMode()
+        _categoriaId.value = doc.categoriaId
         _destaque.value = DestaqueUiState(documento = doc, paginaAtual = 0)
     }
 
     fun avancarPagina() {
-        resetInactivityTimer()
+        enterManualMode()
         val estado = _destaque.value
         val maxPaginas = estado.documento?.paginas?.size ?: 1
         if (estado.paginaAtual < maxPaginas - 1) {
@@ -112,12 +159,15 @@ class MainViewModel : ViewModel() {
     }
 
     fun recuarPagina() {
-        resetInactivityTimer()
+        enterManualMode()
         val estado = _destaque.value
         if (estado.paginaAtual > 0) {
             _destaque.value = estado.copy(paginaAtual = estado.paginaAtual - 1)
         }
     }
+
+    private fun buildCategoriasUi(apiCategorias: List<CategoriaModel>): List<CategoriaModel> =
+        apiCategorias.take(3) + CategoriaEstatica.EVENTOS
 
     // =========================================================
     // LÓGICA DO QUADRO PRINCIPAL (API INTERNA)
@@ -133,14 +183,12 @@ class MainViewModel : ViewModel() {
 
                 val categoriasFiltradas = rawData.categorias
                     .filter { categoria -> categoria.id in idsComDocumentos }
-                    .take(6)
+                    .filter { it.id != CategoriaEstatica.EVENTOS_ID }
 
                 val dataFiltrada = rawData.copy(categorias = categoriasFiltradas)
                 _boardData.value = dataFiltrada
+                _categoriasUi.value = buildCategoriasUi(categoriasFiltradas)
 
-                if (_categoriaId.value == null && categoriasFiltradas.isNotEmpty()) {
-                    selecionarCategoria(categoriasFiltradas.first().id)
-                }
             } catch (e: Exception) {
                 _erro.value = "Erro ao carregar dados: ${e.message}"
             } finally {
@@ -188,6 +236,7 @@ class MainViewModel : ViewModel() {
 
                 if (tempoHoje != null) {
                     _ipmaHoje.value = _ipmaHoje.value.copy(
+                        idTipoTempo = tempoHoje.idWeatherType,
                         descricaoTempo = mapearIdTempo(tempoHoje.idWeatherType),
                         tempMaxMin = "${tempoHoje.tMin}º | ${tempoHoje.tMax}º",
                         riscoNivel = IpmaClient.nivelTexto(rcmHoje),
@@ -202,6 +251,7 @@ class MainViewModel : ViewModel() {
 
                 if (tempoAmanha != null) {
                     _ipmaAmanha.value = _ipmaAmanha.value.copy(
+                        idTipoTempo = tempoAmanha.idWeatherType,
                         descricaoTempo = mapearIdTempo(tempoAmanha.idWeatherType),
                         tempMaxMin = "${tempoAmanha.tMin}º | ${tempoAmanha.tMax}º",
                         riscoNivel = IpmaClient.nivelTexto(rcmAmanha),
@@ -233,17 +283,13 @@ class MainViewModel : ViewModel() {
     private fun mapearIdTempo(id: Int): String {
         return when (id) {
             1 -> "Céu Limpo"
-            2 -> "Pouco Nublado"
-            3 -> "Parc. Nublado"
-            4 -> "Muito Nublado"
-            5 -> "Céu Encoberto"
-            6, 7, 8 -> "Aguaceiros"
-            9, 10, 11 -> "Chuva"
-            12 -> "Chuva/Neve"
-            13, 14 -> "Neve"
-            15 -> "Trovoada"
+            2, 3 -> "Pouco Nublado"
+            4, 5, 24, 25, 26, 27 -> "Muito Nublado"
+            6, 7, 8, 9, 10, 11, 12, 13, 14, 15 -> "Aguaceiros"
             16, 17 -> "Nevoeiro"
-            else -> "Variável"
+            18, 21, 22 -> "Neve"
+            19, 20, 23 -> "Trovoada"
+            else -> "Sem informa\\u00e7\\u00e3o"
         }
     }
 
@@ -255,8 +301,18 @@ class MainViewModel : ViewModel() {
         inactivityJob?.cancel()
         inactivityJob = viewModelScope.launch {
             delay(inactivityDuration)
-            _appMode.value = AppMode.AUTOMATICO
-            startSlideshow()
+            onInactivityElapsed()
+        }
+    }
+
+    /** Após 60 s: documento → vista eventos no início; já em eventos → recarrega o URL inicial. */
+    private fun onInactivityElapsed() {
+        when (_destaqueModo.value) {
+            DestaqueModo.DOCUMENTO -> enterIdleMode()
+            DestaqueModo.VISTA_EVENTOS -> {
+                _webResetTrigger.value++
+                startInactivityTimer()
+            }
         }
     }
 

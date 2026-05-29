@@ -12,8 +12,14 @@
 
     <!-- Área de destaque do documento -->
     <color name="bg_destaque">#FF161616</color>
+    <color name="destaque_paper_start">#FF3D3D3D</color>
+    <color name="destaque_paper_center">#FF333333</color>
+    <color name="destaque_paper_end">#2B2B2B</color>
+    <color name="destaque_scrim_landscape">#33000000</color>
+    <!-- Retrato: sem scrim — o gradiente papel já dá contraste com o A4 branco -->
+    <color name="destaque_scrim_portrait">#00000000</color>
 
-    <!-- Separadores — mesma cor do fundo, invisíveis mas mantêm estrutura -->
+    <!-- Separadores — mesma cor do fundo, invisíveis, mas mantêm estrutura -->
     <color name="divider">#FF0E0E0E</color>
 
     <!-- Texto -->
@@ -33,6 +39,8 @@
     <!-- Categoria inativa -->
     <color name="cat_icone_bg">#FF1F2937</color>
     <color name="cat_icone_stroke">#FF4B5563</color>
+    <color name="cat_texto">#BDC1CA</color>
+    <color name="cat_icone">#BDC1CA</color>
 
     <!-- IPMA — níveis de risco -->
     <color name="risco_reduzido">#FF4ADE80</color>

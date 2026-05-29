@@ -7,6 +7,12 @@ data class CategoriaModel(
     @SerializedName("nome") val nome: String
 )
 
+/** Categoria fixa na grelha (não vem da API). Futuro: URL configurável pela API. */
+object CategoriaEstatica {
+    const val EVENTOS_ID = "__eventos_estatico__"
+    val EVENTOS = CategoriaModel(id = EVENTOS_ID, nome = "Eventos")
+}
+
 data class DocumentoModel(
     @SerializedName("id")           val id: String,
     @SerializedName("categoria_id") val categoriaId: String,
@@ -25,14 +31,16 @@ data class BoardVersion(
 )
 
 // ============================================================
-// IPMA - Estados de UI Unificados (Tempo + Risco de Incêndio)
+// IPMA - Estados de UI (Tempo + Risco de Incêndio)
 // ============================================================
 
 // Estado combinado para popular um widget completo "Hoje" ou "Amanhã"
 data class IpmaWidgetState(
     val titulo: String,
+    val idTipoTempo: Int = 0,
     val descricaoTempo: String = "A carregar...",
-    val tempMaxMin: String = "--",
+    val tempMaxMin: String = "-- | --",
+    val tempoIconRes: Int = android.R.drawable.ic_menu_help,
     val riscoNivel: String = "A carregar...",
     val classRisco: Int = 0,
     val riscoCor: String = "#888888"

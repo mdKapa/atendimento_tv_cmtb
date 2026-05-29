@@ -14,6 +14,7 @@ import android.view.WindowManager
 import androidx.activity.viewModels
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -22,7 +23,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.hls.HlsMediaSource
-import com.bumptech.glide.Glide
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import pt.cmtb.atendimentotv.databinding.ActivityMainBinding
@@ -40,6 +40,7 @@ class MainActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private lateinit var categoriasAdapter: CategoriasAdapter
     private lateinit var documentosAdapter: DocumentosAdapter
+    private lateinit var destaqueWebController: DestaqueWebController
     private val clockTimer = Timer()
     private val clockHandler = Handler(Looper.getMainLooper())
 
@@ -60,6 +61,7 @@ class MainActivity : AppCompatActivity() {
         setupExoPlayer()
         setupClock()
         setupBotoesPagina()
+        setupDestaqueWeb()
         observeViewModel()
         setupNetworkCallback()
     }
@@ -203,16 +205,24 @@ class MainActivity : AppCompatActivity() {
         binding.btnPaginaSeguinte.setOnClickListener { viewModel.avancarPagina() }
     }
 
+    private fun setupDestaqueWeb() {
+        destaqueWebController = DestaqueWebController(
+            activity = this,
+            binding = binding,
+            startUrl = getString(R.string.destaque_url_eventos)
+        )
+        destaqueWebController.setup()
+    }
+
     // =========================================================
     // OBSERVAR VIEWMODEL
     // =========================================================
     private fun observeViewModel() {
 
-        // Categorias (já filtradas pelo ViewModel — sem documentos = ocultas)
+        // Categorias API + «Eventos» estática na última posição
         lifecycleScope.launch {
-            viewModel.boardData.collectLatest { boardData ->
-                boardData ?: return@collectLatest
-                categoriasAdapter.submitList(boardData.categorias)
+            viewModel.categoriasUi.collectLatest { categorias ->
+                categoriasAdapter.submitList(categorias)
             }
         }
 
@@ -227,43 +237,34 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Documento em destaque + navegação de páginas
+        // Modo do palco: expandir coluna (web) vs grelha de documentos
+        lifecycleScope.launch {
+            viewModel.destaqueModo.collectLatest { modo ->
+                val expandido = modo == DestaqueModo.VISTA_EVENTOS
+                updatePalcoExpandido(expandido)
+                when (modo) {
+                    DestaqueModo.VISTA_EVENTOS -> {
+                        documentosAdapter.setDocumentoAtivo(null)
+                        destaqueWebController.show()
+                    }
+                    DestaqueModo.DOCUMENTO -> destaqueWebController.hide()
+                }
+            }
+        }
+
+        // Recarrega o site no URL inicial após inatividade
+        lifecycleScope.launch {
+            viewModel.webResetTrigger.collectLatest { trigger ->
+                if (trigger > 0L && viewModel.destaqueModo.value == DestaqueModo.VISTA_EVENTOS) {
+                    destaqueWebController.reloadFromStart()
+                }
+            }
+        }
+
         lifecycleScope.launch {
             viewModel.destaque.collectLatest { estado ->
-                val doc = estado.documento
-                val pagina = estado.paginaAtual
-
-                documentosAdapter.setDocumentoAtivo(doc?.id)
-
-                if (doc == null || doc.paginas.isEmpty()) {
-                    binding.tvSemDocumento.visibility = View.VISIBLE
-                    binding.imgDestaque.visibility = View.GONE
-                    binding.tvPaginaIndicador.visibility = View.GONE
-                    binding.btnPaginaAnterior.visibility = View.GONE
-                    binding.btnPaginaSeguinte.visibility = View.GONE
-                    return@collectLatest
-                }
-
-                binding.tvSemDocumento.visibility = View.GONE
-                binding.imgDestaque.visibility = View.VISIBLE
-
-                Glide.with(this@MainActivity)
-                    .load(doc.paginas[pagina])
-                    .override(1920, 1080)
-                    .into(binding.imgDestaque)
-
-                if (doc.paginas.size > 1) {
-                    binding.tvPaginaIndicador.visibility = View.VISIBLE
-                    binding.tvPaginaIndicador.text =
-                        getString(R.string.indicador_pagina, pagina + 1, doc.paginas.size)
-                } else {
-                    binding.tvPaginaIndicador.visibility = View.GONE
-                }
-
-                binding.btnPaginaAnterior.visibility =
-                    if (pagina > 0) View.VISIBLE else View.GONE
-                binding.btnPaginaSeguinte.visibility =
-                    if (pagina < doc.paginas.size - 1) View.VISIBLE else View.GONE
+                if (viewModel.destaqueModo.value != DestaqueModo.DOCUMENTO) return@collectLatest
+                renderDocumentoDestaque(estado)
             }
         }
 
@@ -277,15 +278,26 @@ class MainActivity : AppCompatActivity() {
                 // Forçamos a leitura dos títulos a partir do strings.xml
                 card.tvTituloDia.text = getString(R.string.ipma_hoje)
 
-                // Verificamos se o estado ainda não foi atualizado pela API. Se for o caso, usamos o "A carregar..." / "(N/D)" do strings.xml
+                //Tempo
                 card.tvTempoDescricao.text = if (estado.descricaoTempo.contains("carregar") || estado.descricaoTempo == "--") getString(R.string.ipma_a_carregar) else estado.descricaoTempo
                 card.tvTempoMinMax.text = estado.tempMaxMin
+                card.imgTempoIcon.setImageResource(estado.tempoIconRes)
 
-                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else estado.riscoNivel
+                //Ícone do Tempo
+                val iconeTempo = getIconeTempo(estado.idTipoTempo)
+                card.imgTempoIcon.setImageResource(iconeTempo)
 
-                // Prevenção de crash (fallback para cinza) caso a cor venha inválida
-                val cor = try { android.graphics.Color.parseColor(estado.riscoCor) } catch(e: Exception) { android.graphics.Color.GRAY }
+                //Risco de Incêndio
+                val (corRiscoHex, textoRisco) = getDadosRiscoIncendio(estado.classRisco)
+                //Previne texto fora do âmbito da API
+                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else textoRisco
+
+                // 3. Aplicar a cor processada ao texto e ao ícone
+                val cor = try { android.graphics.Color.parseColor(corRiscoHex) } catch(e: Exception) { android.graphics.Color.GRAY }
                 card.tvRiscoNivel.setTextColor(cor)
+
+                // Garante que a imagem é a do fogo branco, e pinta-a da cor certa
+                card.imgRiscoIncendio.setImageResource(R.drawable.ic_risco_fogo)
                 card.imgRiscoIncendio.setColorFilter(cor)
             }
         }
@@ -297,16 +309,28 @@ class MainActivity : AppCompatActivity() {
 
                 card.tvTituloDia.text = getString(R.string.ipma_amanha)
 
+                // Tempo
                 card.tvTempoDescricao.text = if (estado.descricaoTempo.contains("carregar") || estado.descricaoTempo == "--") getString(R.string.ipma_a_carregar) else estado.descricaoTempo
                 card.tvTempoMinMax.text = estado.tempMaxMin
 
-                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else estado.riscoNivel
+                // 1. Mapear o Ícone do Tempo correto
+                val iconeTempoCorreto = getIconeTempo(estado.idTipoTempo)
+                card.imgTempoIcon.setImageResource(iconeTempoCorreto)
 
-                val cor = try { android.graphics.Color.parseColor(estado.riscoCor) } catch(e: Exception) { android.graphics.Color.GRAY }
+                // 2. Mapear Cor e Texto do Risco de Incêndio
+                val (corRiscoHex, textoRisco) = getDadosRiscoIncendio(estado.classRisco)
+
+                card.tvRiscoNivel.text = if (estado.riscoNivel.contains("carregar") || estado.riscoNivel == "--") getString(R.string.ipma_a_carregar) else textoRisco
+
+                // 3. Aplicar a cor processada
+                val cor = try { android.graphics.Color.parseColor(corRiscoHex) } catch(e: Exception) { android.graphics.Color.GRAY }
                 card.tvRiscoNivel.setTextColor(cor)
+
+                card.imgRiscoIncendio.setImageResource(R.drawable.ic_risco_fogo)
                 card.imgRiscoIncendio.setColorFilter(cor)
             }
         }
+
 
         // Erros de rede
         lifecycleScope.launch {
@@ -316,6 +340,53 @@ class MainActivity : AppCompatActivity() {
                 binding.tvSemDocumento.visibility = View.VISIBLE
             }
         }
+    }
+
+    /** Vista eventos: palco até ao fundo da coluna; documentos: reserva espaço à grelha. */
+    private fun updatePalcoExpandido(expandido: Boolean) {
+        val frameParams = binding.frameDestaque.layoutParams as ConstraintLayout.LayoutParams
+        if (expandido) {
+            binding.rvDocumentos.visibility = View.GONE
+            frameParams.bottomToTop = ConstraintLayout.LayoutParams.UNSET
+            frameParams.bottomToBottom = ConstraintLayout.LayoutParams.PARENT_ID
+        } else {
+            binding.rvDocumentos.visibility = View.VISIBLE
+            frameParams.bottomToBottom = ConstraintLayout.LayoutParams.UNSET
+            frameParams.bottomToTop = R.id.rvDocumentos
+        }
+        binding.frameDestaque.layoutParams = frameParams
+    }
+
+    private fun renderDocumentoDestaque(estado: DestaqueUiState) {
+        val doc = estado.documento
+        val pagina = estado.paginaAtual
+
+        documentosAdapter.setDocumentoAtivo(doc?.id)
+
+        if (doc == null || doc.paginas.isEmpty()) {
+            binding.tvSemDocumento.visibility = View.VISIBLE
+            DestaqueImageLoader.clear(this, binding)
+            binding.tvPaginaIndicador.visibility = View.GONE
+            binding.btnPaginaAnterior.visibility = View.GONE
+            binding.btnPaginaSeguinte.visibility = View.GONE
+            return
+        }
+
+        binding.tvSemDocumento.visibility = View.GONE
+        DestaqueImageLoader.load(this, binding, doc.paginas[pagina])
+
+        if (doc.paginas.size > 1) {
+            binding.tvPaginaIndicador.visibility = View.VISIBLE
+            binding.tvPaginaIndicador.text =
+                getString(R.string.indicador_pagina, pagina + 1, doc.paginas.size)
+        } else {
+            binding.tvPaginaIndicador.visibility = View.GONE
+        }
+
+        binding.btnPaginaAnterior.visibility =
+            if (pagina > 0) View.VISIBLE else View.GONE
+        binding.btnPaginaSeguinte.visibility =
+            if (pagina < doc.paginas.size - 1) View.VISIBLE else View.GONE
     }
 
     // =========================================================
@@ -363,17 +434,61 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         hideSystemUi()
         player?.play()
+        if (::destaqueWebController.isInitialized &&
+            viewModel.destaqueModo.value == DestaqueModo.VISTA_EVENTOS
+        ) {
+            binding.webDestaque.onResume()
+            binding.webDestaque.resumeTimers()
+        }
     }
 
     override fun onPause() {
         super.onPause()
         player?.pause()
+        if (::destaqueWebController.isInitialized) {
+            binding.webDestaque.onPause()
+            binding.webDestaque.pauseTimers()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        if (::destaqueWebController.isInitialized) {
+            destaqueWebController.destroy()
+        }
         player?.release()
         player = null
         clockTimer.cancel()
     }
+
+    // =========================================================
+    // Mapeamento Drawable - IPMA API
+    // =========================================================
+    private fun getIconeTempo(idTipoTempo: Int): Int {
+        return when (idTipoTempo) {
+            1 -> R.drawable.ic_tempo_sol // Céu limpo
+            2, 3 -> R.drawable.ic_tempo_sol_nuvens // Pouco/Parcialmente nublado
+            4, 5, 24, 25, 26, 27 -> R.drawable.ic_tempo_nuvens // Muito nublado ou encoberto
+            6, 7, 8, 9, 10, 11, 12, 13, 14, 15 -> R.drawable.ic_tempo_chuva // Chuva / Aguaceiros
+            16, 17 -> R.drawable.ic_tempo_nevoeiro // Nevoeiro / Neblina
+            18, 21, 22 -> R.drawable.ic_tempo_neve // Neve / Geada
+            19, 20, 23 -> R.drawable.ic_tempo_trovoada // Trovoada
+            else -> R.drawable.ic_not_available // Fallback (Ponto Exclamação)
+        }
+    }
+
+    /**
+     * Mapeia o Risco de Incêndio (1 a 5) para a Cor Hexadecimal e o Texto.
+     */
+    private fun getDadosRiscoIncendio(rcm: Int): Pair<String, String> {
+        return when (rcm) {
+            1 -> Pair("#4ADE80", "Reduzido")      // Verde
+            2 -> Pair("#FBBF24", "Moderado")      // Amarelo
+            3 -> Pair("#F97316", "Elevado")       // Laranja
+            4 -> Pair("#EF4444", "Muito Elevado") // Vermelho
+            5 -> Pair("#991B1B", "Máximo")        // Vermelho Escuro
+            else -> Pair("#555555", "Indefinido") // Cinza (Fallback)
+        }
+    }
+
 }

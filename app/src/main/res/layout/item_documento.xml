@@ -10,14 +10,6 @@
     android:layout_marginEnd="12dp"
     android:background="@drawable/bg_card_normal">
 
-    <ImageView
-        android:id="@+id/imgDocIcon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginBottom="8dp"
-        android:src="@android:drawable/ic_menu_report_image"
-        android:contentDescription="Ícone de Documento" />
-
     <TextView
         android:id="@+id/tvTituloDocumento"
         android:layout_width="match_parent"

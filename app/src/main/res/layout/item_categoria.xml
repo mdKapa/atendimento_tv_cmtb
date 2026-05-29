@@ -16,7 +16,7 @@
         android:id="@+id/imgCategoria"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        android:src="@android:drawable/ic_menu_agenda"
+        android:src="@drawable/cat_folders"
         android:contentDescription="Ícone" />
 
     <View android:layout_width="16dp" android:layout_height="1dp" />

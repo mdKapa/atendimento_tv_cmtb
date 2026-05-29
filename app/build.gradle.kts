@@ -11,8 +11,8 @@ android {
         applicationId = "pt.cmtb.atendimentotv"
         minSdk = 30
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
     }
 
     buildTypes {
@@ -54,6 +54,7 @@ dependencies {
 
     // === GLIDE ===
     implementation("com.github.bumptech.glide:glide:4.16.0")
+    implementation("jp.wasabeef:glide-transformations:4.3.0")
 
     // === VIEWMODEL + COROUTINES ===
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")

@@ -36,7 +36,7 @@
                 android:id="@+id/imgTempoIcon"
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:src="@android:drawable/ic_menu_camera"
+                app:srcCompat="@drawable/ic_tempo_sol"
                 android:contentDescription="@string/desc_estado_tempo"
                 app:tint="@color/texto_secundario"
                 xmlns:app="http://schemas.android.com/apk/res-auto" />
